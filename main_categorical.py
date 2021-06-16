@@ -1,9 +1,8 @@
 from torch import optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Subset
-from modules import *
-from modules_beta import *
 from modules_categorical import *
+from torch.nn.functional import relu
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -36,7 +35,7 @@ def train(model, device, train_dataloader, validation_dataloader, loss_function,
             # Need to do -1 here and relu activation to make sure the bucketization works in the intended way, and that
             # the -1 goes back to a 0.
             # The intended way is: 0-0.2: 0, 0.2-0.4: 1, 0.4-0.6: 2, 0.6-0.8: 3, 0.8-1: 1
-            x_bucketized = torch.nn.functional.relu(torch.bucketize(x, boundaries) - 1, inplace=True)
+            x_bucketized = relu(torch.bucketize(x, boundaries) - 1, inplace=True)
 
             elbo, logp, kl = loss_function(x_bucketized, probs, mu_enc, log_sig_enc)
             elbo.backward()
@@ -53,7 +52,10 @@ def train(model, device, train_dataloader, validation_dataloader, loss_function,
                 x_reconstr, probs = model.decoder(z)
 
                 boundaries = torch.tensor([0, 0.2, 0.4, 0.6, 0.8, 1]).to(device)
-                x_bucketized = torch.bucketize(x, boundaries).to(device)
+                # Need to do -1 here and relu activation to make sure the bucketization works in the intended way, and that
+                # the -1 goes back to a 0.
+                # The intended way is: 0-0.2: 0, 0.2-0.4: 1, 0.4-0.6: 2, 0.6-0.8: 3, 0.8-1: 1
+                x_bucketized = relu(torch.bucketize(x, boundaries) - 1, inplace=True)
 
                 elbo, logp, kl = loss_function(x_bucketized, probs, mu_enc, log_sig_enc)
                 val_epoch_elbo.append(elbo.cpu().item() / x.size()[0])
