@@ -71,7 +71,7 @@ def train(model, device, train_dataloader, validation_dataloader, loss_function,
                 for i in range(7):
                     axarr[i, 0].imshow(x[i].cpu().permute(1, 2, 0).numpy())
                     # axarr[i, 1].imshow(mu_dec[i].cpu().permute(1, 2, 0).numpy())
-                    axarr[i, 2].imshow(x_reconstr[i].cpu().permute(1, 2, 0).numpy())
+                    axarr[i, 2].imshow(x_reconstr[i].cpu().numpy())
                 plt.show()
 
         print("Epoch loss in epoch {}: {}, logP(X): {}, KL Divergence: {}".format(epoch, np.mean(np.array(train_epoch_elbo)), np.mean(np.array(train_epoch_logp)), np.mean(np.array(train_epoch_kl))))
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     num_var_enc = 1
     num_var_dec = 5  # Since we choose 5 bins, we need the decoder to output a softmax of 5 probabilities
     # TODO: Run 2 and 16
-    num_latent = 2
+    num_latent = 16
     num_neurons = [8, 16, 24, 32]
     dropout = 0.2
     maxpool = [0, 1, 2]
