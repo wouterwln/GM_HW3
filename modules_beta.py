@@ -75,9 +75,9 @@ class BetaDecoder(nn.Module):
                 layers.append(nn.BatchNorm2d(n_new))
         self.layers = nn.ModuleList(layers)
         self.log_alpha = nn.Conv2d(num_neurons[-1], num_var, 3, padding=1)
-        self.alpha_act = nn.Softplus()
+        self.alpha_act = nn.Tanh()
         self.log_beta = nn.Conv2d(num_neurons[-1], num_var, 3, padding=1)
-        self.beta_act = nn.Softplus()
+        self.beta_act = nn.Tanh()
 
     def forward(self, x):
         h = x
