@@ -127,6 +127,6 @@ class CategoricalELBOLoss(nn.Module):
         probs = probs.reshape(-1, 5)
         x = x.reshape(-1)
         likelihoods = probs[range(len(x) ), x]
-        log_p = torch.sum(torch.log(likelihoods))
+        log_p = torch.sum(torch.log(likelihoods+self.epsilon))
         KL = -0.5 * torch.sum(1 + enc_var - (enc_mu ** 2) - torch.exp(enc_var))
         return -log_p + KL, log_p, KL
