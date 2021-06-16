@@ -91,9 +91,7 @@ class BetaDecoder(nn.Module):
             else:
                 h = layer(h)
 
-        log_alpha = self.log_alpha(h)
         log_alpha = self.alpha_act(self.log_alpha(h))
-        log_beta = self.log_beta(h)
         log_beta = self.beta_act(self.log_beta(h))
 
         m = Beta(torch.exp(log_alpha), torch.exp(log_beta))
