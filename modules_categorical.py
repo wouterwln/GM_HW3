@@ -124,10 +124,9 @@ class CategoricalELBOLoss(nn.Module):
         self.epsilon = 1e-16
 
     def forward(self, x, probs, enc_mu, enc_var):
-        likelihoods = []
         probs = probs.reshape(-1, 5)
         x = x.reshape(-1)
-
-        log_p = torch.sum()
+        likelihoods = probs[range(len(x) ), x]
+        log_p = torch.sum(torch.log(likelihoods))
         KL = -0.5 * torch.sum(1 + enc_var - (enc_mu ** 2) - torch.exp(enc_var))
         return -log_p + KL, log_p, KL
