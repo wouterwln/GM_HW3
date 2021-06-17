@@ -103,7 +103,7 @@ if __name__ == '__main__':
     loss_function = CategoricalELBOLoss()
     optimizer = optim.Adam(model.parameters())
     model = train(model, device, train_set, test_set, CategoricalELBOLoss(), optimizer, num_lags=3)
-    torch.save(model.state_dict(), "Categorical_beta_2_dimensional")
+    torch.save(model.state_dict(), "VAE_categorical_16_dimensional")
     model.eval()
     with torch.no_grad():
         sample = model.sample(10)
