@@ -1,8 +1,7 @@
 from torch import optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Subset
-from modules_bernoulli import *
-from torch.nn.functional import relu
+from modules import *
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -23,21 +22,20 @@ def train(model, device, train_dataloader, validation_dataloader, loss_function,
     val_loss = []
     epoch = 1
     while training:
-        train_epoch_obj, train_epoch_cross_entropy, train_epoch_kl = [], [], []
-        val_epoch_obj, val_epoch_cross_entropy, val_epoch_kl = [], [], []
+        train_epoch_elbo, train_epoch_logp, train_epoch_kl = [], [], []
+        val_epoch_elbo, val_epoch_logp, val_epoch_kl = [], [], []
         model.train()
         for batch in train_dataloader:
             optimizer.zero_grad()
             x, _ = batch
             x = x.to(device)
             z, mu_enc, log_sig_enc = model.encoder(x)
-            x_reconstr, param = model.decoder(z)
-
-            obj, cross_entropy, kl = loss_function(x, param, mu_enc, log_sig_enc)
-            obj.backward()
+            x_reconstr, mu_dec, log_sig_dec = model.decoder(z)
+            elbo, logp, kl = loss_function(x, mu_dec, log_sig_dec, mu_enc, log_sig_enc)
+            elbo.backward()
             optimizer.step()
-            train_epoch_obj.append(obj.cpu().item() / x.size()[0])
-            train_epoch_cross_entropy.append(cross_entropy.cpu().item() / x.size()[0])
+            train_epoch_elbo.append(elbo.cpu().item() / x.size()[0])
+            train_epoch_logp.append(logp.cpu().item() / x.size()[0])
             train_epoch_kl.append(kl.cpu().item() / x.size()[0])
         model.eval()
         with torch.no_grad():
@@ -45,11 +43,10 @@ def train(model, device, train_dataloader, validation_dataloader, loss_function,
                 x, _ = batch
                 x = x.to(device)
                 z, mu_enc, log_sig_enc = model.encoder(x)
-                x_reconstr, param = model.decoder(z)
-
-                obj, cross_entropy, kl = loss_function(x, param, mu_enc, log_sig_enc)
-                val_epoch_obj.append(obj.cpu().item() / x.size()[0])
-                val_epoch_cross_entropy.append(cross_entropy.cpu().item() / x.size()[0])
+                x_reconstr, mu_dec, log_sig_dec = model.decoder(z)
+                elbo, logp, kl = loss_function(x, mu_dec, log_sig_dec, mu_enc, log_sig_enc)
+                val_epoch_elbo.append(elbo.cpu().item() / x.size()[0])
+                val_epoch_logp.append(logp.cpu().item() / x.size()[0])
                 val_epoch_kl.append(kl.cpu().item() / x.size()[0])
             if epoch % 5 == 0:
                 plt.figure()
@@ -60,16 +57,15 @@ def train(model, device, train_dataloader, validation_dataloader, loss_function,
                 # use the created array to output your multiple images. In this case I have stacked 4 images vertically
                 for i in range(7):
                     axarr[i, 0].imshow(x[i].cpu().permute(1, 2, 0).numpy())
-                    axarr[i, 1].imshow(param[i].cpu().permute(1, 2, 0).numpy())
-                    axarr[i, 2].imshow(x_reconstr[i].permute(1, 2, 0).cpu().numpy())
-
+                    axarr[i, 1].imshow(mu_dec[i].cpu().permute(1, 2, 0).numpy())
+                    axarr[i, 2].imshow(x_reconstr[i].cpu().permute(1, 2, 0).numpy())
                 plt.show()
 
-        print("Objective loss in epoch {}: {}, cross_entropy(X): {}, KL Divergence: {}".format(epoch, np.mean(np.array(train_epoch_obj)), np.mean(np.array(train_epoch_cross_entropy)), np.mean(np.array(train_epoch_kl))))
-        print("Objective validation loss in epoch {}: {}, cross_entropy(X): {}, KL Divergence: {}".format(epoch, np.mean(np.array(val_epoch_obj)), np.mean(np.array(val_epoch_cross_entropy)), np.mean(np.array(val_epoch_kl))))
-        lag_valloss.append(np.mean(np.array(val_epoch_obj)))
-        train_loss.append(-np.mean(np.array(train_epoch_obj)))
-        val_loss.append(-np.mean(np.array(val_epoch_obj)))
+        print("Epoch loss in epoch {}: {}, logP(X): {}, KL Divergence: {}".format(epoch, np.mean(np.array(train_epoch_elbo)), np.mean(np.array(train_epoch_logp)), np.mean(np.array(train_epoch_kl))))
+        print("Epoch validation loss in epoch {}: {}, logP(X): {}, KL Divergence: {}".format(epoch, np.mean(np.array(val_epoch_elbo)), np.mean(np.array(val_epoch_logp)), np.mean(np.array(val_epoch_kl))))
+        lag_valloss.append(np.mean(np.array(val_epoch_elbo)))
+        train_loss.append(-np.mean(np.array(train_epoch_elbo)))
+        val_loss.append(-np.mean(np.array(val_epoch_elbo)))
         if sorted(lag_valloss) == lag_valloss:
             training = False
         else:
@@ -79,7 +75,7 @@ def train(model, device, train_dataloader, validation_dataloader, loss_function,
     plt.plot(train_loss, label="Train")
     plt.plot(val_loss, label="Validation")
     plt.xlabel("Epoch")
-    plt.ylabel("Modified objective")
+    plt.ylabel("ELBO")
     plt.legend()
     plt.show()
     return model
@@ -90,16 +86,25 @@ if __name__ == '__main__':
     train_set = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     validation_set = DataLoader(validation_set, batch_size=batch_size, shuffle=True)
     test_set = DataLoader(test_set, batch_size=batch_size, shuffle=True)
-    num_var_enc = 1
-    num_var_dec = 1
+    num_var = 1
     num_latent = 16
     num_neurons = [8, 16, 24, 32]
     dropout = 0.2
     maxpool = [0, 1, 2]
-    enc = BernoulliEncoder(num_var_enc, num_latent, num_neurons, dropout, maxpool)
-    dec = BernoulliDecoder(num_var_dec, num_latent, num_neurons, dropout, maxpool)
-    model = BernoulliVAE(enc, dec).to(device)
-    loss_function = BernoulliELBOLoss()
+    enc_trained = EncoderTrained(num_var, num_latent, num_neurons, dropout, maxpool)
+    dec = Decoder(num_var, num_latent, num_neurons, dropout, maxpool)
+    model = VAE(enc_trained, dec).to(device)
+    model.load_state_dict(torch.load("VAE_bernoulli_16_dimensional"))
+    trained_dec = model.decoder
+    enc = Encoder(num_var, num_latent)
     optimizer = optim.Adam(model.parameters())
-    model = train(model, device, train_set, test_set, BernoulliELBOLoss(), optimizer, num_lags=3)
-    torch.save(model.state_dict(), "VAE_bernoulli_16_dimensional")
+    model = train(model, device, train_set, test_set, ELBOLoss(), optimizer, num_lags=2)
+    torch.save(model.state_dict(), "VAE_gaussian_16_dimensional_constant_var")
+    model.eval()
+    with torch.no_grad():
+        sample = model.sample(16)
+        f, axarr = plt.subplots(4, 4)
+        for i in range(16):
+
+            axarr[i // 4, i % 4].imshow(sample[i].cpu().permute(1, 2, 0).numpy())
+        plt.show()
