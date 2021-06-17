@@ -75,7 +75,7 @@ class BernoulliDecoder(nn.Module):
                 layers.append(nn.BatchNorm2d(n_new))
         self.layers = nn.ModuleList(layers)
         self.param = nn.Conv2d(num_neurons[-1], num_var, kernel_size=3, padding=1)
-        self.param_act = nn.Softmax(dim=0)
+        self.param_act = nn.Sigmoid()
 
     def forward(self, x):
         h = x
@@ -123,5 +123,5 @@ class BernoulliELBOLoss(nn.Module):
     def forward(self, x, param, enc_mu, enc_var):
         cross_entropy = torch.sum(x * torch.log(param+self.epsilon) + (1-x) * torch.log(1-param+self.epsilon))
         KL = -0.5 * torch.sum(1 + enc_var - (enc_mu ** 2) - torch.exp(enc_var))
-        obj = -cross_entropy - KL
+        obj = -cross_entropy + KL
         return obj, cross_entropy, KL
