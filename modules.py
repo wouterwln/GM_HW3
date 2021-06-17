@@ -5,6 +5,7 @@ import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
 class Encoder(nn.Module):
     def __init__(self, num_var, num_latent, num_neurons, dropout, maxpool_indices, batch_norm=True, flatten=False):
         super(Encoder, self).__init__()
@@ -24,12 +25,10 @@ class Encoder(nn.Module):
                 layers.append(nn.BatchNorm2d(n_new))
         self.flatten = flatten
 
-
         self.mu = nn.Linear((self.dims[len(maxpool_indices)] ** 2) * num_neurons[-1], num_latent)
         self.log_var = nn.Linear((self.dims[len(maxpool_indices)] ** 2) * num_neurons[-1], num_latent)
         self.layers = nn.ModuleList(layers)
         self.var_act = nn.Softplus()
-
 
     def forward(self, x):
         h = x
@@ -52,6 +51,7 @@ class Encoder(nn.Module):
 
         return z
 
+
 class Decoder(nn.Module):
     def __init__(self, num_var, num_latent, num_neurons, dropout, upsample_indices, batch_norm=True, constant_var=True):
         super(Decoder, self).__init__()
@@ -73,9 +73,9 @@ class Decoder(nn.Module):
             if batch_norm:
                 layers.append(nn.BatchNorm2d(n_new))
         self.layers = nn.ModuleList(layers)
-        self.mu = nn.Conv2d(num_neurons[-1], num_var, 3, padding=1)
+        self.mu = nn.ConvTranspose2d(num_neurons[-1], num_var, 3, padding=1)
         if not constant_var:
-            self.log_var = nn.Conv2d(num_neurons[-1], num_var, 3, padding=1)
+            self.log_var = nn.ConvTranspose2d(num_neurons[-1], num_var, 3, padding=1)
             self.var_act = nn.Softplus(beta=0.5)
         self.constant_var = constant_var
 
@@ -131,6 +131,6 @@ class ELBOLoss(nn.Module):
 
     def forward(self, x, dec_mu, dec_var, enc_mu, enc_var):
         reconstr_loss = F.mse_loss(x, dec_mu, reduction="none")
-        log_p = -0.5 * torch.sum(torch.log(2 * self.pi)  + dec_var + (reconstr_loss / (torch.exp(dec_var) + 1e-16)))
+        log_p = -0.5 * torch.sum(torch.log(2 * self.pi) + dec_var + (reconstr_loss / (torch.exp(dec_var) + 1e-16)))
         KL = -0.5 * torch.sum(1 + enc_var - (enc_mu ** 2) - torch.exp(enc_var))
         return -log_p + KL, log_p, KL
