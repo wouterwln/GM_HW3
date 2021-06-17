@@ -58,7 +58,7 @@ def train(model, device, train_dataloader, validation_dataloader, loss_function,
                 # use the created array to output your multiple images. In this case I have stacked 4 images vertically
                 for i in range(7):
                     axarr[i, 0].imshow(x[i].cpu().permute(1, 2, 0).numpy())
-                    # axarr[i, 1].imshow(mu_dec[i].cpu().permute(1, 2, 0).numpy())
+                    axarr[i, 1].imshow(param[i].cpu().permute(1, 2, 0).numpy())
                     axarr[i, 2].imshow(x_reconstr[i].permute(1, 2, 0).cpu().numpy())
 
                 plt.show()
