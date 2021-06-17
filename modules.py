@@ -73,9 +73,9 @@ class Decoder(nn.Module):
             if batch_norm:
                 layers.append(nn.BatchNorm2d(n_new))
         self.layers = nn.ModuleList(layers)
-        self.mu = nn.Conv2d(num_neurons[-1], num_var, 3, padding=1)
+        self.mu = nn.ConvTranspose2d(num_neurons[-1], num_var, 3, padding=1)
         if not constant_var:
-            self.log_var = nn.Conv2d(num_neurons[-1], num_var, 3, padding=1)
+            self.log_var = nn.ConvTranspose2d(num_neurons[-1], num_var, 3, padding=1)
             self.var_act = nn.Softplus(beta=0.5)
         self.constant_var = constant_var
 
