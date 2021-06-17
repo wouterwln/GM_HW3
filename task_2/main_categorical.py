@@ -19,6 +19,8 @@ def load_data():
 def train(model, device, train_dataloader, validation_dataloader, loss_function, optimizer, num_lags=4):
     training = True
     lag_valloss = [np.inf for _ in range(num_lags)]
+    train_loss = []
+    val_loss = []
     epoch = 1
     while training:
         train_epoch_elbo, train_epoch_logp, train_epoch_kl = [], [], []
@@ -77,11 +79,20 @@ def train(model, device, train_dataloader, validation_dataloader, loss_function,
         print("Epoch loss in epoch {}: {}, logP(X): {}, KL Divergence: {}".format(epoch, np.mean(np.array(train_epoch_elbo)), np.mean(np.array(train_epoch_logp)), np.mean(np.array(train_epoch_kl))))
         print("Epoch validation loss in epoch {}: {}, logP(X): {}, KL Divergence: {}".format(epoch, np.mean(np.array(val_epoch_elbo)), np.mean(np.array(val_epoch_logp)), np.mean(np.array(val_epoch_kl))))
         lag_valloss.append(np.mean(np.array(val_epoch_elbo)))
+        train_loss.append(-np.mean(np.array(train_epoch_elbo)))
+        val_loss.append(-np.mean(np.array(val_epoch_elbo)))
         if sorted(lag_valloss) == lag_valloss:
             training = False
         else:
             lag_valloss = lag_valloss[1:]
             epoch += 1
+    plt.figure()
+    plt.plot(train_loss, label="Train")
+    plt.plot(val_loss, label="Validation")
+    plt.xlabel("Epoch")
+    plt.ylabel("ELBO")
+    plt.legend()
+    plt.show()
     return model
 
 if __name__ == '__main__':
@@ -104,10 +115,3 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters())
     model = train(model, device, train_set, test_set, CategoricalELBOLoss(), optimizer, num_lags=3)
     torch.save(model.state_dict(), "VAE_categorical_16_dimensional")
-    model.eval()
-    with torch.no_grad():
-        sample = model.sample(10)
-        for i in range(10):
-            plt.figure()
-            plt.imshow(sample[i].cpu().permute(1, 2, 0).numpy())
-            plt.show()
