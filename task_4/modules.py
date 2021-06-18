@@ -52,19 +52,19 @@ class EncoderTrained(nn.Module):
         return z
 
 class Encoder(nn.Module):
-    def __init__(self, num_var, num_latent):
+    def __init__(self, num_latent):
         super(Encoder, self).__init__()
-        self.mu = torch.zeros(num_latent)
-        self.sigma = torch.ones(num_latent)
+        self.mu = nn.Parameter(torch.zeros(num_latent))
+        self.sigma = nn.Parameter(torch.ones(num_latent))
 
-    def forward(self, x):
+    def forward(self):
         z = self.reparameterization(self.mu, self.sigma)
 
         return z, self.mu, self.sigma
 
     def reparameterization(self, mu, sigma):
         epsilon = torch.rand_like(sigma).to(device)
-        z = mu + sigma * epsilon
+        z = mu.to(device) + sigma.to(device) * epsilon
 
         return z
 
@@ -147,6 +147,7 @@ class ELBOLoss(nn.Module):
         self.pi = (2 * torch.acos(torch.zeros(1))).to(device)
 
     def forward(self, x, dec_mu, dec_var, enc_mu, enc_var):
+        enc_var = torch.log(enc_var)
         reconstr_loss = F.mse_loss(x, dec_mu, reduction="none")
         log_p = -0.5 * torch.sum(torch.log(2 * self.pi) + dec_var + (reconstr_loss / (torch.exp(dec_var) + 1e-16)))
         KL = -0.5 * torch.sum(1 + enc_var - (enc_mu ** 2) - torch.exp(enc_var))

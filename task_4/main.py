@@ -15,7 +15,7 @@ def load_data():
     test_set = Subset(mnist_trainset, range(50000, 60000))
     return train_set, validation_set, test_set
 
-def train(model, device, train_dataloader, validation_dataloader, loss_function, optimizer, num_lags=4):
+def train(model, device, train_dataloader, loss_function, optimizer, num_lags=4):
     training = True
     lag_valloss = [np.inf for _ in range(num_lags)]
     train_loss = []
@@ -27,39 +27,17 @@ def train(model, device, train_dataloader, validation_dataloader, loss_function,
         model.train()
         for batch in train_dataloader:
             optimizer.zero_grad()
-            x, _ = batch
+            x = batch
             x = x.to(device)
-            z, mu_enc, log_sig_enc = model.encoder(x)
+            z, mu_enc, sig_enc = model.encoder()
+            z = z.unsqueeze(0)
             x_reconstr, mu_dec, log_sig_dec = model.decoder(z)
-            elbo, logp, kl = loss_function(x, mu_dec, log_sig_dec, mu_enc, log_sig_enc)
+            elbo, logp, kl = loss_function(x, mu_dec, log_sig_dec, mu_enc, sig_enc)
             elbo.backward()
             optimizer.step()
             train_epoch_elbo.append(elbo.cpu().item() / x.size()[0])
             train_epoch_logp.append(logp.cpu().item() / x.size()[0])
             train_epoch_kl.append(kl.cpu().item() / x.size()[0])
-        model.eval()
-        with torch.no_grad():
-            for batch in validation_dataloader:
-                x, _ = batch
-                x = x.to(device)
-                z, mu_enc, log_sig_enc = model.encoder(x)
-                x_reconstr, mu_dec, log_sig_dec = model.decoder(z)
-                elbo, logp, kl = loss_function(x, mu_dec, log_sig_dec, mu_enc, log_sig_enc)
-                val_epoch_elbo.append(elbo.cpu().item() / x.size()[0])
-                val_epoch_logp.append(logp.cpu().item() / x.size()[0])
-                val_epoch_kl.append(kl.cpu().item() / x.size()[0])
-            if epoch % 5 == 0:
-                plt.figure()
-
-                # subplot(r,c) provide the no. of rows and columns
-                f, axarr = plt.subplots(7, 3)
-
-                # use the created array to output your multiple images. In this case I have stacked 4 images vertically
-                for i in range(7):
-                    axarr[i, 0].imshow(x[i].cpu().permute(1, 2, 0).numpy())
-                    axarr[i, 1].imshow(mu_dec[i].cpu().permute(1, 2, 0).numpy())
-                    axarr[i, 2].imshow(x_reconstr[i].cpu().permute(1, 2, 0).numpy())
-                plt.show()
 
         print("Epoch loss in epoch {}: {}, logP(X): {}, KL Divergence: {}".format(epoch, np.mean(np.array(train_epoch_elbo)), np.mean(np.array(train_epoch_logp)), np.mean(np.array(train_epoch_kl))))
         print("Epoch validation loss in epoch {}: {}, logP(X): {}, KL Divergence: {}".format(epoch, np.mean(np.array(val_epoch_elbo)), np.mean(np.array(val_epoch_logp)), np.mean(np.array(val_epoch_kl))))
@@ -81,11 +59,10 @@ def train(model, device, train_dataloader, validation_dataloader, loss_function,
     return model
 
 if __name__ == '__main__':
-    batch_size = 1000
+    batch_size = 1
     train_set, validation_set, test_set = load_data()
-    train_set = DataLoader(train_set, batch_size=batch_size, shuffle=True)
-    validation_set = DataLoader(validation_set, batch_size=batch_size, shuffle=True)
-    test_set = DataLoader(test_set, batch_size=batch_size, shuffle=True)
+    single_point = test_set.dataset[0][0]
+    single_point_loader = DataLoader(single_point, batch_size=batch_size, shuffle=True)
     num_var = 1
     num_latent = 16
     num_neurons = [8, 16, 24, 32]
@@ -94,17 +71,22 @@ if __name__ == '__main__':
     enc_trained = EncoderTrained(num_var, num_latent, num_neurons, dropout, maxpool)
     dec = Decoder(num_var, num_latent, num_neurons, dropout, maxpool)
     model = VAE(enc_trained, dec).to(device)
-    model.load_state_dict(torch.load("VAE_bernoulli_16_dimensional"))
+    model.load_state_dict(torch.load("VAE_gaussian_16_dimensional_constant_var"))
     trained_dec = model.decoder
-    enc = Encoder(num_var, num_latent)
+    trained_dec.eval()  # Make sure it doesn't get trained
+    enc = Encoder(num_latent)  # Initialize the new encoder
+    model = VAE(enc, trained_dec)
     optimizer = optim.Adam(model.parameters())
-    model = train(model, device, train_set, test_set, ELBOLoss(), optimizer, num_lags=2)
-    torch.save(model.state_dict(), "VAE_gaussian_16_dimensional_constant_var")
+    model = train(model, device, single_point_loader, ELBOLoss(), optimizer, num_lags=2)
+    torch.save(model.state_dict(), "VAE_gaussian_16_task4")
     model.eval()
-    with torch.no_grad():
-        sample = model.sample(16)
-        f, axarr = plt.subplots(4, 4)
-        for i in range(16):
 
-            axarr[i // 4, i % 4].imshow(sample[i].cpu().permute(1, 2, 0).numpy())
+    f, axarr = plt.subplots(1, 3)
+    # Reconstructing
+    with torch.no_grad():
+        z, mu_enc, log_sig_enc = model.encoder(single_point)
+        x_reconstr, mu_dec, log_sig_dec = model.decoder(z)
+        axarr[0].imshow(single_point.cpu().permute(1, 2, 0).numpy())  # Real data point
+        axarr[1].imshow(mu_dec.cpu().permute(1, 2, 0).numpy())  # Change this to different reconstruction
+        axarr[2].imshow(x_reconstr.cpu().permute(1, 2, 0).numpy())  # Reconstruction like task 1D
         plt.show()
