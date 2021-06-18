@@ -21,7 +21,7 @@ def train(model, device, train_dataloader, validation_dataloader, loss_function,
     train_loss = []
     val_loss = []
     epoch = 1
-    while epoch < 101:
+    while training:
         train_epoch_elbo, train_epoch_logp, train_epoch_kl = [], [], []
         val_epoch_elbo, val_epoch_logp, val_epoch_kl = [], [], []
         model.train()
