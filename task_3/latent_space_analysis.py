@@ -1,6 +1,6 @@
-from main import load_data
+from task_1.main import load_data
 import torch
-from modules import Encoder, Decoder, VAE
+from task_1.modules import Encoder, Decoder, VAE
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import numpy as np

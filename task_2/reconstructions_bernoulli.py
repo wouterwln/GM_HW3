@@ -1,11 +1,7 @@
-from main import load_data
-import torch
+from task_1.main import load_data
 from modules_bernoulli import *
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
-import numpy as np
-import matplotlib.cm as cm
-from sklearn.decomposition import PCA
 
 if __name__ == "__main__":
     _, _, test_data = load_data()

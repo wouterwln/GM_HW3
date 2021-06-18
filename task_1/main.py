@@ -96,7 +96,7 @@ if __name__ == '__main__':
     model = VAE(enc, dec).to(device)
     optimizer = optim.Adam(model.parameters())
     model = train(model, device, train_set, test_set, ELBOLoss(), optimizer, num_lags=2)
-    torch.save(model.state_dict(), "VAE_gaussian_16_dimensional_constant_var")
+    torch.save(model.state_dict(), "../VAE_gaussian_16_dimensional_constant_var")
     model.eval()
     with torch.no_grad():
         sample = model.sample(16)
